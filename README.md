@@ -26,6 +26,6 @@ Code and data behind "Beyond the Score" publications
 [Sports Reference, LLC](https://www.sports-reference.com/)  
 [Neil Paine](https://github.com/Neil-Paine-1)  
 
-Last Updated: 8-13-2024
-Author: [Sean Beney](https://github.com/SeanB44)
+Last Updated: 8-13-2024  
+Author: [Sean Beney](https://github.com/SeanB44)  
 Contact: smbeney15@gmail.com
