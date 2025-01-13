@@ -1,27 +1,21 @@
-source('../../../Functions.R')
+source('../../Functions.R')
 
-####### PREDICTING POINT DIFFERENTIAL #####
+####### PREDICTING PLAYOFF SUCCESS #####
 ### Load Data ###
-raw.dat<-read.xlsx('./Data/2024 MLB Master v2.xlsx', sheet = 1,check.names = F, sep.names = "_") 
+raw.dat<-read.xlsx('./Data/Standings Analysis.xlsx', sheet = "2000-2023",check.names = F, sep.names = "_") 
 names(raw.dat)
 
 ## Data Cleaning
 # Initial cleaning of unneeded variables and NAs
 raw.dat<-raw.dat%>%
-  dplyr::select(-c(Home_SP, Away_SP, H_G, A_G, Home_Final, Away_Final, 
-                   `H_SP_WAR/G`, `A_SP_WAR/G`, `H_SP_Proj_WAR/G`, `A_SP_Proj_WAR/G`,
-                   `H_P_WAR/G`, `A_P_WAR/G`, `H_P_Proj_WAR/G`, `A_P_Proj_WAR/G`,
-                   `H_Bat_WAR/G`, `A_Bat_WAR/G`, `H_Proj_Bat_WAR/G`, `A_Proj_Bat_WAR/G`))%>%
-  na.omit()
-names(raw.dat)
+ filter(!is.na(`Post-Season_Wins`))%>%
+  dplyr::select(c("Year", "Tm", "W", "L", "W-L%", "R", "RA", "Rdiff", "SRS", "pythWL","Luck", "AVG", "wOBA", "WAR-B",
+           "K/9", "ERA", "FIP", "WAR-P", "DRS", "Total_WAR"))
 
 ## Data Transformations ##
-full.dat<-raw.dat%>%
-  mutate(WP_Diff = H_Adj_WP-A_Adj_WP,
-         Rdiff_Diff = `H_Adj_Rdiff/G` - `A_Adj_Rdiff/G`,
-         Home_Adv = H_HomeSplit - A_RoadSplit)%>%
-  dplyr::select(-c(H_Adj_WP, A_Adj_WP, `H_Rdiff/G`,`H_Adj_Rdiff/G`, `A_Adj_Rdiff/G`, `A_Rdiff/G`, `H_HomeSplit`, `A_RoadSplit`,
-                   H_WP, A_WP, H_Proj_WP, A_Proj_WP, `H_Proj_Rdiff/G`, `A_Proj_Rdiff/G`)) # Remove basis variables
+raw.dat$pythW<-as.numeric(c(unlist(str_split(raw.dat$pythWL, "-"))[seq(from=1, to=420, by = 2)]))
+raw.dat$pythL<-as.numeric(c(unlist(str_split(raw.dat$pythWL, "-"))[seq(from=2, to=420, by = 2)]))
+raw.dat$`pythWL%`<-raw.dat$pythW / (raw.dat$pythW + raw.dat$pythL)
 
 # Re-arrange
 names(full.dat)
