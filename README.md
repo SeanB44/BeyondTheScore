@@ -1,7 +1,6 @@
 # Beyond The Score
 Code and data behind "Beyond the Score" publications
-## Citations
-### Data courtesy of: ###
+## Data Sorces
 #### NCAA Basketball ####
 -  [hoopR](https://hoopR.sportsdataverse.org):
 ```
