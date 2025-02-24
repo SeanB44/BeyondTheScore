@@ -1,0 +1,33 @@
+## Libraries ##
+# # pacman::p_load_current_gh("sportsdataverse/cfbfastR", dependencies = TRUE, update = TRUE)
+library(httr)
+library(dplyr)
+library(ggplot2)
+library(e1071)
+library(caret)
+library(XML)
+library(readxl)
+library(tidyr)
+library(tidyverse)
+library(openxlsx)
+library(domir)
+library(cfbfastR)
+library(zoo)
+library(RCurl)
+library(rvest)
+library (ISLR2)
+library(leaps)
+library(car)
+library(pls)
+usethis::edit_r_environ()
+
+### Keys and Logins ###
+CFBD_API_KEY="OJOCuvsvPW4SIhLZPbr3/Pw8vaoASLKFX5yKTD28+Su7YvPZAPfHQl55pB3CADjm"
+KP_USER = "smbeney15@gmail.com"
+KP_PW = "XCSeanB23"
+Sys.setenv(KP_USER = "smbeney15@gmail.com")
+Sys.setenv(KP_PW = "XCSeanB23")
+
+ODDS_API_KEY <- "f0b9cecb1c2ad487631e5297aade8d65"
+
+cbd_login="ovB5CrvoFUW2q610IHi9BNbhyfgy3d24pFeusTclPh7cv7wavnv56mFYpebFQzAbOiRoOfWCJT7--oqTLvHpqZYOYjGmXZlkZoH9keKBc6CAa9rV4QyJYHRixyUAt0B-_gq3PObiSStZlyMRzREqI5r5VYOVqEdwuZG84Bb0ouw"
