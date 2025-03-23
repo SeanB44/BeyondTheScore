@@ -14,7 +14,7 @@ library(forecast)
 library(car)
 
 # ### Read in Data ###
-team.dat<-read_xlsx("./Data/Standings Analysis.xlsx", sheet = "2014-2023", skip = 4)
+team.dat<-read_xlsx("./(3) Data/Standings Analysis.xlsx", sheet = "1990-2023")
 names(team.dat)
 
 # Make Pythag W/L into Pythag W%
