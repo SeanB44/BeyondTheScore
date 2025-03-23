@@ -54,7 +54,7 @@ underdog.dat$BIG.UPSET<-as.factor(underdog.dat$BIG.UPSET)
 colnames(underdog.dat)
 underdog.dat.1<-underdog.dat %>% dplyr::select(-c("BY.YEAR.NO", "BY.ROUND.NO"))
 
-## Run 1
+## Run 1 - ALL Variables
 set.seed(123)
 colnames(underdog.dat.1)
 boruta.train <- Boruta(`BIG.UPSET`~., data = underdog.dat.1[,-c(1:15)], doTrace = 2)
@@ -87,7 +87,7 @@ final.imp.dat$meanImp<-final.imp.dat$meanImp*100
 sum(final.imp.dat$meanImp)
 final.imp.dat.full<-final.imp.dat
 
-## Run 2
+## Run 2 - Stats only (No ranks)
 underdog.dat.2<-underdog.dat %>% dplyr::select(-c("BY.YEAR.NO", "BY.ROUND.NO", matches(".RANK")))
 underdog.dat.2$UNDERDOG.R.SCORE<-NULL # No current data for this
 set.seed(123)
@@ -130,7 +130,7 @@ write.xlsx(final.imp.dat.stats, "Underdog Stat Importance.xlsx", rowNames = T)
 (torvikMetrics.dat<-cbd_all_metrics(2025))
 (torvikTRank<-cbd_torvik_resume_database(2025))
 cbd_torvik_current_resume()
-(tovikTable.dat<-read.xlsx("./Torvik Full Table.xlsx"))
+(torvikTable.dat<-read.xlsx("./Data/Torvik Full Table.xlsx"))
 (kp.dat<-kp_pomeroy_ratings(2025))
 
 names(torvikMetrics.dat)
@@ -145,7 +145,7 @@ names(kp.dat)
 # adj_d
 # adj_o
 # adj_em
-names(tovikTable.dat)
+names(torvikTable.dat)
 # Elite.SOS
 # Talent
 
@@ -153,6 +153,7 @@ names(tovikTable.dat)
 torvik.team.align<-which(!torvikMetrics.dat$team %in% torvikResume.dat$team)
 kp.team.align<-which(!kp.dat$team %in% torvikMetrics.dat$team)
 kp.dat$team[kp.team.align]
+torvikTable.team.align<-which(!torvikTable.dat$team %in% torvikMetrics.dat$team)
 
 kp.dat$team<-case_when(
   kp.dat$team == "McNeese" ~ "McNeese St.",
@@ -170,7 +171,7 @@ kp.dat$team<-case_when(
 current.dat<-left_join(torvikMetrics.dat %>% dplyr::select(c(team, conf, net_rank)),
                        torvikResume.dat %>% dplyr::select(c(team, resume, wab, elo)), by = "team") %>%
   left_join(kp.dat %>% dplyr::select(c(team, adj_d, adj_o, adj_em)), by = "team") %>%
-  left_join(tovikTable.dat %>% dplyr::select(c(Team, Elite.SOS, Talent)) %>% rename(team = Team), by ="team")
+  left_join(torvikTable.dat[,-ncol(torvikTable.dat)] %>% dplyr::select(c(Team, Elite.SOS, Talent)) %>% rename(team = Team), by ="team")
 
 current.dat<-current.dat[-1,]
 head(current.dat)
@@ -208,14 +209,34 @@ unique(names(underdog.dat.2.sims) == names(current.dat))
 sims.dat<-rbind(underdog.dat.2.sims, current.dat)
 
 # convert columns 6:ncol to numeric
-sims.dat[,5:ncol(sims.dat)]<-sapply(sims.dat[,5:ncol(sims.dat)], as.numeric)
+sims.dat$SEED<-NULL
+sims.dat$SEED.DIFF<-NULL
+sims.dat$CONFERENCE<-NULL
+sims.dat[,3:ncol(sims.dat)]<-sapply(sims.dat[,3:ncol(sims.dat)], as.numeric)
 colSums(is.na(sims.dat))
 
-  
+# If Team Name is "Average Underdog" make year "min(year) - max(year)"
+sims.dat$YEAR[which(sims.dat$TEAM == "AVERAGE UNDERDOG")]<-paste0(as.character(min(sims.dat$YEAR,na.rm = T)), "-", as.character(max(sims.dat$YEAR, na.rm = T)))
+colSums(is.na(sims.dat))
+
+sims.dat<-sims.dat %>% na.omit()
+(dupes<-sims.dat[duplicated(sims.dat$TEAM),])
+
+# Remove Duplicate cases (the same team may be listed multiple times if they won multiple NCAAT games)
+sims.dat.noDupes<-sims.dat[!duplicated(sims.dat$TEAM),]
+# Only duplicates to assess teams winning multple games as an Underdog
+sims.dat.onlyDupes<-sims.dat[duplicated(sims.dat$TEAM),]
+sims.dat<-NULL
+## Z-Score Normalizaion
+# No Dupes data
+apply(sims.dat.noDupes[,-c(1:2)], 2, function(x) hist(x))
+sims.noDupes.norm.dat<-sims.dat.noDupes
+sims.noDupes.norm.dat[,-c(1:2)]<-apply(sims.dat.noDupes[,-c(1:2)], 2, function(x) (x - mean(x))/sd(x))
+
 # ## KNN
-# KNN on full dataset
-set.seed(88)
-km.out <- kmeans(sims.dat[,-c(1:5)], centers = 10, nstart = 50)
+# Kmeans on no dupes data
+set.seed(8)
+km.out <- kmeans(sims.noDupes.norm.dat[,-c(1:2)], centers = 10, nstart = 50)
 km.out
 
 # Decide how many clusters to look at
@@ -224,12 +245,12 @@ n_clusters <- 30
 # Initialize total within sum of squares error: wss
 wss <- numeric(n_clusters)
 
-set.seed(88)
+set.seed(8)
 
 # Look over 1 to n possible clusters
 for (i in 1:n_clusters) {
   # Fit the model: km.out
-  km.out <- kmeans(player.norm.dat[,-c(1:5)], centers = i, nstart = 80)
+  km.out <- kmeans(sims.noDupes.norm.dat[,-c(1:2)], centers = i, nstart = 80)
   # Save the within cluster sum of squares
   wss[i] <- km.out$tot.withinss
 }
@@ -248,25 +269,25 @@ scree_plot +
   geom_hline(
     yintercept = wss, 
     linetype = 'dashed', 
-    col = c(rep('#000000',19),'#FF0000', rep('#000000',10))
+    col = c(rep('#000000',3),'#FF0000', rep('#000000',26))
   )
-# Going with 27 clusters
-set.seed(2)
-km.out <- kmeans(player.norm.dat[,-c(1:6)], centers = 12, nstart = 220, iter.max = 50)
+# Going with 4 clusters
+set.seed(12)
+km.out <- kmeans(sims.noDupes.norm.dat[,-c(1:2)], centers = 4, nstart = 250, iter.max = 50)
 km.out
 
 # Calculate euclidean distance between the first point and each other point in the dataset
 # Combine column 2 and column 1 of ws.dat to get unique name
 nms<-c()
-for(i in 1:nrow(player.dat)){
-  nms[i]<-paste0(player.dat$Name[i], " - ", player.dat$Position[i])
+for(i in 1:nrow(sims.dat.noDupes)){
+  nms[i]<-paste0(sims.dat.noDupes$TEAM[i]," - ", sims.dat.noDupes$YEAR[i])
 }
 nms
 
-player.dat$Cluster<-km.out$cluster
-player.norm.dat$Cluster<-km.out$cluster
+sims.noDupes.norm.dat$Cluster<-km.out$cluster
+sims.noDupes.norm.dat$Cluster<-km.out$cluster
 
-(distances <- as.matrix(dist(player.norm.dat[,-c(1:5)], method = 'euclidean', diag = FALSE)))
+(distances <- as.matrix(dist(sims.noDupes.norm.dat[,-c(1:2)], method = 'euclidean', diag = FALSE)))
 # Make 0s into NAs
 distances[distances == 0] <- NA
 distances.df<-as.data.frame(distances)
@@ -274,9 +295,98 @@ colnames(distances.df)<-nms
 rownames(distances.df)<-nms
 distances.df
 
+# Sort by Average Underdog
+distances.df<-distances.df %>% dplyr::select("AVERAGE UNDERDOG - 2008-2025", everything())
+
+# sort by first column
+distances.noDupes.df<-distances.df[order(distances.df[,1], decreasing = F),]
+
+## Duplicate KMeans for onlyDupes data
+sims.dat.onlyDupes<-rbind(sims.dat.onlyDupes, c("2008-2025", "Average Multi-Win Underdog",colMeans(sims.dat.onlyDupes[,-c(1:2)], na.rm = T)))
+
+## Z- Score Normalization
+# make columns 3:ncol numeric
+sims.dat.onlyDupes[,-c(1:2)]<-sapply(sims.dat.onlyDupes[,-c(1:2)], as.numeric)
+apply(sims.dat.onlyDupes[,-c(1:2)], 2, function(x) hist(x))
+# Remove duplicates
+sims.dat.onlyDupes<-sims.dat.onlyDupes[!duplicated(sims.dat.onlyDupes$TEAM),]
+
+sims.onlyDupes.norm.dat<-sims.dat.onlyDupes
+sims.onlyDupes.norm.dat[,-c(1:2)]<-apply(sims.dat.onlyDupes[,-c(1:2)], 2, function(x) (x - mean(x))/sd(x))
+
+set.seed(8)
+km.out <- kmeans(sims.onlyDupes.norm.dat[,-c(1:2)], centers = 10, nstart = 50)
+km.out
+
+# Decide how many clusters to look at
+n_clusters <- 30
+
+# Initialize total within sum of squares error: wss
+wss <- numeric(n_clusters)
+
+set.seed(8)
+
+# Look over 1 to n possible clusters
+for (i in 1:n_clusters) {
+  # Fit the model: km.out
+  km.out <- kmeans(sims.onlyDupes.norm.dat[,-c(1:2)], centers = i, nstart = 80)
+  # Save the within cluster sum of squares
+  wss[i] <- km.out$tot.withinss
+}
+
+# Produce a scree plot
+wss_df <- tibble(clusters = 1:n_clusters, wss = wss)
+
+scree_plot <- ggplot(wss_df, aes(x = clusters, y = wss, group = 1)) +
+  geom_point(size = 4)+
+  geom_line() +
+  scale_x_continuous(breaks = c(2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30)) +
+  xlab('Number of clusters')
+scree_plot
+
+scree_plot +
+  geom_hline(
+    yintercept = wss, 
+    linetype = 'dashed', 
+    col = c(rep('#000000',3),'#FF0000', rep('#000000',26))
+  )
+# Going with 5 clusters
+set.seed(12)
+km.out <- kmeans(sims.onlyDupes.norm.dat[,-c(1:2)], centers = 5, nstart = 250, iter.max = 50)
+km.out
+
+# Calculate euclidean distance between the first point and each other point in the dataset
+# Combine column 2 and column 1 of ws.dat to get unique name
+nms<-c()
+for(i in 1:nrow(sims.dat.onlyDupes)){
+  nms[i]<-paste0(sims.dat.onlyDupes$TEAM[i]," - ", sims.dat.onlyDupes$YEAR[i])
+}
+nms
+
+sims.onlyDupes.norm.dat$Cluster<-km.out$cluster
+sims.onlyDupes.norm.dat$Cluster<-km.out$cluster
+
+(distances <- as.matrix(dist(sims.onlyDupes.norm.dat[,-c(1:2)], method = 'euclidean', diag = FALSE)))
+
+# Make 0s into NAs
+distances[distances == 0] <- NA
+distances.df<-as.data.frame(distances)
+colnames(distances.df)<-nms
+rownames(distances.df)<-nms
+distances.df
+
+# Sort by Average Underdog
+distances.df<-distances.df %>% dplyr::select("Average Multi-Win Underdog - 2008-2025", everything())
+
+# sort by first column
+distances.Dupes.df<-distances.df[order(distances.df[,1], decreasing = F),]
+
+
 # Export distances
 wb<-createWorkbook()
-addWorksheet(wb, "Distances")
-writeData(wb, "Distances", distances.df, rowNames = TRUE, colNames = TRUE)
-saveWorkbook(wb, file = "./Output/Starting Pitcher Similarity Scores.xlsx", overwrite = TRUE)
+addWorksheet(wb, "Distances - No Duplicates")
+writeData(wb, "Distances - No Duplicates", distances.noDupes.df, rowNames = TRUE, colNames = TRUE)
+addWorksheet(wb, "Distances - Duplicates")
+writeData(wb, "Distances - Duplicates", distances.Dupes.df, rowNames = TRUE, colNames = TRUE)
+saveWorkbook(wb, file = "./Output/Underdog Similarity Scores.xlsx", overwrite = TRUE)
 

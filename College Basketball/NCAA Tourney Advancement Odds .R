@@ -22,9 +22,10 @@ library(survival)
 source("../../Codes.R")
 source("../../Functions.R")
 source("./Update CBB Master.R")
+source("./Conference Power Rankings.R")
 login(user_email = Sys.getenv("KP_USER"), user_pw = Sys.getenv("KP_PW"))
 
-all.dat<-read.xlsx("./Conference Power Rankings Data.xlsx", sheet = "All Data") %>% dplyr::select(c("year", "team", "conf", "ncaa_seed",
+all.dat<-read.xlsx(paste0("./Data/Conference Power Rankings - ", Sys.Date(), ".xlsx"), sheet = "All Data") %>% dplyr::select(c("year", "team", "conf", "ncaa_seed",
                                                                                                     "NC", "RU", "FF", "E8"))
 names(all.dat)
 colSums(is.na(all.dat))
@@ -95,6 +96,9 @@ lm1<-lm(End ~ ., data = train.dat %>% dplyr::select(-c("team", "year", "conf", "
 summary(lm1)
 # predict on new data
 lm1.pred<-predict(lm1, newdata = test.dat)
+
+#lm1.pred[68]<-min(na.omit(lm1.pred)) #Temporary fix for NA is SEMO (last prejected team in)
+
 # Ensuring no values below 0
 lm1.pred<-ifelse(lm1.pred<0, 0, lm1.pred)
 lm1.pred<-ifelse(lm1.pred>4, 4, lm1.pred)

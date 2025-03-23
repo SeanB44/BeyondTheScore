@@ -22,11 +22,10 @@ library(forecast)
 source("../../Codes.R")
 source("../../Functions.R")
 login(user_email = Sys.getenv("KP_USER"), user_pw = Sys.getenv("KP_PW"))
-
+cbbdata::cbd_login(username = Sys.getenv('CBD_USER'), password = Sys.getenv('CBD_PW'))
 ### Get Conference Data ###
-all_data <- kp_efficiency(min_year = 2001, max_year = 2025)
+all_data <- cbbdata::cbd_kenpom_ratings()
 all_data <- all_data %>% dplyr::select(year, team,everything())
-all_data$AdjEf<-all_data$adj_o - all_data$adj_d
 
 # Clean up the data
 View(all_data)
@@ -36,11 +35,11 @@ colSums(is.na(all_data))
 all_data$ncaa_seed[is.na(all_data$ncaa_seed)] <- 0
 
 # Sort by Year then Conference, then Efficiency
-all_conf <- all_data[order(-all_data$year, all_data$conf, all_data$AdjEf),]
+all_conf <- all_data[order(-all_data$year, all_data$conf, all_data$adj_em),]
 head(all_conf)
 
 # Rank AdjEf within each year
-all_conf$AdjEf_rk <- ave(-all_conf$AdjEf, all_conf$year, FUN = rank)
+all_conf$AdjEf_rk <- ave(-all_conf$adj_em, all_conf$year, FUN = rank)
 head(all_conf)
 
 # Calculate the number of teams in each conefrence each year
@@ -48,7 +47,7 @@ all_conf$n_teams <- as.numeric(ave(all_conf$team, all_conf$year, all_conf$conf, 
 
 # Aggregate conference data
 all_conf<-all_conf %>% group_by(year, conf) %>%
-  summarise(AdjEf = mean(AdjEf), AdjEf_rk = mean(AdjEf_rk), adj_o = mean(adj_o), adj_d = mean(adj_d),
+  summarise(AdjEf = mean(adj_em), AdjEf_rk = mean(rk), adj_o = mean(adj_o), adj_d = mean(adj_d),
             ncaa_bids = length(which(ncaa_seed>0)), n_teams =mean(n_teams))
 
 all_conf$pct_bids<-all_conf$ncaa_bids/all_conf$n_teams
@@ -98,7 +97,7 @@ all_conf <- all_conf%>%dplyr::select(year, conf, overall_rk, AdjEf, adj_o, adj_d
 all_conf <- all_conf[all_conf$conf != "ind",]
 
 # Join with tournament advancement data
-conf_tourney.dat<-read.xlsx("./Conference Power Rankings Data.xlsx", sheet = 1)
+conf_tourney.dat<-read.xlsx("./Data/Conference Power Rankings Data.xlsx", sheet = 1)
 head(conf_tourney.dat)
 
 all_conf<-left_join(all_conf, conf_tourney.dat[,c(1:2, (ncol(conf_tourney.dat)-8):ncol(conf_tourney.dat))], by = c("year", "conf"))
@@ -108,7 +107,7 @@ logit1 <- glm(champ ~ AdjEf, data = all_conf, family = binomial)
 summary(logit1)
 
 new.data <- data.frame(AdjEf = all_conf$AdjEf[all_conf$year == 2025 & all_conf$conf == "SEC"])
-predict(logit1, newdata = new.data, type = "response") #77.5% channce an SEC team will win the national championship
+#predict(logit1, newdata = new.data, type = "response") #77.5% channce an SEC team will win the national championship
 
 # Write to Excel
 wb<-createWorkbook()
@@ -117,6 +116,6 @@ writeData(wb, "Conference Power Rankings", all_conf)
 addWorksheet(wb, "All Data")
 writeData(wb, "All Data", all_data)
 
-saveWorkbook(wb, paste0("Conference Power Rankings - ", Sys.Date(), ".xlsx"), overwrite = TRUE)
+saveWorkbook(wb, paste0("./Data/Conference Power Rankings - ", Sys.Date(), ".xlsx"), overwrite = TRUE)
 
 
